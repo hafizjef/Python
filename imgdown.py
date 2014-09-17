@@ -1,12 +1,14 @@
 '''
 'Reddit Imgdownloader original work from http://inventwithpython.com/blog/2013/09/30/downloading-imgur-posts-linked-from-reddit-with-python/
 '''
-import re, praw, requests, os, glob, sys
+import re, praw, requests, os, glob, sys, mmap
 from bs4 import BeautifulSoup
 
 MIN_SCORE = 100 # the default minimum score before it is downloaded
 FOLD = "Data"
 DNUM = 100
+
+
 
 if len(sys.argv) < 2:
     # no command line options sent:
@@ -21,21 +23,56 @@ elif len(sys.argv) >= 2:
         FOLD = str(sys.argv[2])
         DNUM = int(sys.argv[3])
         MIN_SCORE = int(sys.argv[4])
-
+try:
+    f = open(FOLD + "/" + targetSubreddit + ".done")
+    s = mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ)
+except:
+    urllog = open(FOLD + "/" + targetSubreddit + ".done", "a")
+    urllog.close()	
+	
 imgurUrlPattern = re.compile(r'(http://i.imgur.com/(.*))(\?.*)?')
 try:
     os.makedirs(FOLD)
 except:
     pass
 def downloadImage(imageUrl, localFileName):
+    try:
+        if s.find(localFileName) != -1:
+            print 'File Exist, Skipping...'
+            return
+    except:
+	    print "!",
+    pass
+  
+    fName, fExt = os.path.splitext(localFileName)
+    global SSTART
+    try:
+        ofile = open(FOLD + "/" + targetSubreddit + ".cache", "r")
+        NSTART = ofile.read()
+        NSTART = int(NSTART)
+    except:
+        NSTART = 1	
+    
+    urllog = open(FOLD + "/" + targetSubreddit + ".done", "a")
+
+    saveName = targetSubreddit + "_" + str(NSTART) + fExt
+    log = open(FOLD + "/" + targetSubreddit + ".cache", "w")
+
     response = requests.get(imageUrl)
     if response.status_code == 200:
-        print('Downloading %s... ' % (localFileName))
-        with open(FOLD+"/"+localFileName, 'wb') as fo:
-            for chunk in response.iter_content(4096):
-                fo.write(chunk)
-                
-
+        print('Downloading %s' % (localFileName))
+        try:
+            with open(FOLD+"/"+ saveName, 'wb') as fo:
+                NSTART += 1
+                for chunk in response.iter_content(4096):
+                    fo.write(chunk)
+            log.write(str(NSTART))
+            urllog.write(localFileName + "\n")
+        except:
+            print "Error :", sys.exc_info()[0]
+        pass			
+    log.close()
+    urllog.close()
 # Connect to reddit and download the subreddit front page
 r = praw.Reddit(user_agent='CHANGE THIS TO A UNIQUE VALUE') # Note: Be sure to change the user-agent to something unique.
 submissions = r.get_subreddit(targetSubreddit).get_hot(limit=DNUM)
@@ -48,6 +85,8 @@ submissions = r.get_subreddit(targetSubreddit).get_hot(limit=DNUM)
 #                                       .get_top_from_all(limit=25)
 
 # Process all the submissions from the front page
+
+
 for submission in submissions:
     # Check for all the cases where we will skip a submission:
     if "imgur.com/" not in submission.url:
@@ -71,6 +110,10 @@ for submission in submissions:
             else:
                 imageFile = imageUrl[imageUrl.rfind('/') + 1:]
             localFileName = 'reddit_%s_%s_album_%s_imgur_%s' % (targetSubreddit, submission.id, albumId, imageFile)
+            
+            if DNUM == 0:
+                print("Done")
+                sys.exit()	
             print(str(DNUM) + ":"),
             downloadImage('http:' + match['href'], localFileName)
             DNUM -= 1
@@ -85,6 +128,10 @@ for submission in submissions:
             imgurFilename = imgurFilename[:imgurFilename.find('?')]
 
         localFileName = 'reddit_%s_%s_album_None_imgur_%s' % (targetSubreddit, submission.id, imgurFilename)
+       
+        if DNUM == 0:
+            print("Done")
+            sys.exit()	
         print(str(DNUM) + ":"),
         downloadImage(submission.url, localFileName)
         DNUM -= 1
@@ -105,6 +152,10 @@ for submission in submissions:
             imageFile = imageUrl[imageUrl.rfind('/') + 1:]
 
         localFileName = 'reddit_%s_%s_album_None_imgur_%s' % (targetSubreddit, submission.id, imageFile)
+        
+        if DNUM == 0:
+            print("Done")
+            sys.exit()	
         print(str(DNUM) + ":"),
         downloadImage(imageUrl, localFileName)
         DNUM -= 1
