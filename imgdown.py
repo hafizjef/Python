@@ -24,6 +24,11 @@ elif len(sys.argv) >= 2:
         DNUM = int(sys.argv[3])
         MIN_SCORE = int(sys.argv[4])
 try:
+    os.makedirs(FOLD)
+except:
+    pass
+
+try:
     f = open(FOLD + "/" + targetSubreddit + ".done")
     s = mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ)
 except:
@@ -31,10 +36,7 @@ except:
     urllog.close()	
 	
 imgurUrlPattern = re.compile(r'(http://i.imgur.com/(.*))(\?.*)?')
-try:
-    os.makedirs(FOLD)
-except:
-    pass
+
 def downloadImage(imageUrl, localFileName):
     try:
         if s.find(localFileName) != -1:
