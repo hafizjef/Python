@@ -1,3 +1,6 @@
+#Author: HafizJef
+#Usage: Python [scriptname.py]
+
 import time, requests
 from datetime import datetime
 
